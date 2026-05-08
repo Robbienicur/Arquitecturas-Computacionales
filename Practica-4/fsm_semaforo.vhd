@@ -61,13 +61,13 @@ begin
     process(current_state)
     begin
         case current_state is
-            when S0     => timeout_value <= to_unsigned(30, 32);
-            when S1     => timeout_value <= to_unsigned(5, 32);
-            when S2     => timeout_value <= to_unsigned(20, 32);
-            when S3     => timeout_value <= to_unsigned(5, 32);
-            when S4     => timeout_value <= to_unsigned(15, 32);
-            when S5     => timeout_value <= to_unsigned(10, 32);
-            when others => timeout_value <= to_unsigned(30, 32);
+            when S0     => timeout_value <= to_unsigned(30 * 50_000_000, 32);
+            when S1     => timeout_value <= to_unsigned(5  * 50_000_000, 32);
+            when S2     => timeout_value <= to_unsigned(20 * 50_000_000, 32);
+            when S3     => timeout_value <= to_unsigned(5  * 50_000_000, 32);
+            when S4     => timeout_value <= to_unsigned(15 * 50_000_000, 32);
+            when S5     => timeout_value <= to_unsigned(10 * 50_000_000, 32);
+            when others => timeout_value <= to_unsigned(30 * 50_000_000, 32);
         end case;
     end process;
 
