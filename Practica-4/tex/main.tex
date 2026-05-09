@@ -64,7 +64,7 @@
 % -------------------- Marca de agua UDLAP --------------------
 \AddToShipoutPictureBG{%
   \begin{tikzpicture}[remember picture,overlay]
-    \node[opacity=0.08, rotate=12, anchor=south east] at ([xshift=1.8cm,yshift=-1.6cm]current page.south east)
+    \node[rotate=12, anchor=south east] at ([xshift=1.8cm,yshift=-1.6cm]current page.south east)
     {\includegraphics[width=0.75\paperwidth]{udlap_logo.png}};
   \end{tikzpicture}
 }
@@ -129,25 +129,28 @@ Robbie Nicolás Curioso de Salazar \hfill 186028 \hfill \href{mailto:robbie.curi
 \section{Introducción}
 Las máquinas de estado finito (\textit{Finite State Machines}, FSM) son uno de los modelos más utilizados en el diseño de sistemas digitales secuenciales: permiten describir el comportamiento de un circuito en función de un conjunto reducido de estados, una señal de entrada y una salida que se calcula a partir de ellos. En arquitectura computacional, las FSM aparecen como base de las unidades de control, los detectores de secuencia, los protocolos serie y, en general, en cualquier circuito en el que la respuesta dependa de la historia previa de las entradas.
 
-En esta práctica se diseñaron e implementaron en VHDL tres FSM con propósitos distintos. Las dos primeras son detectores de la secuencia binaria \texttt{101} sobre una entrada serial, una con arquitectura Mealy y otra con arquitectura Moore. La tercera es una máquina de seis estados que controla un sistema de semáforo de doble vía con cruce peatonal y que, en el diseño completo, se conecta a un divisor de frecuencia de \SI{50}{\mega\hertz} a \SI{1}{\hertz} mediante un módulo estructural de nivel superior.
+En esta práctica se diseñaron e implementaron en VHDL tres FSM con propósitos distintos. Las dos primeras son detectores de la secuencia binaria \texttt{101} sobre una entrada serial, una con arquitectura Mealy y otra con arquitectura Moore. La tercera es una máquina de seis estados que controla un sistema de semáforo de doble vía con cruce peatonal y que opera directamente con el reloj de \SI{50}{\mega\hertz} de la PYNQ~Z1, integrando la temporización dentro de su propio contador para producir tiempos de permanencia en escala de segundos sin necesidad de un divisor externo.
 
-El objetivo es comparar el comportamiento temporal de los modelos Mealy y Moore para una misma especificación funcional y, en paralelo, ejercitar el diseño jerárquico en VHDL combinando una unidad de control (la FSM del semáforo) con un divisor de frecuencia. La verificación funcional se realizó mediante simulación en \textit{Active-HDL} sobre tres bancos de pruebas independientes.
+El objetivo es comparar el comportamiento temporal de los modelos Mealy y Moore para una misma especificación funcional y, en paralelo, llevar la FSM del semáforo desde la simulación hasta su síntesis y operación física sobre la PYNQ~Z1. La verificación funcional se realizó mediante simulación en \textit{Active-HDL} sobre tres bancos de pruebas independientes y, en el caso del semáforo, se complementó con una validación en hardware utilizando Vivado y un prototipo de LED conectado a los conectores PMOD de la tarjeta.
 
 \section{Objetivos}
 \begin{itemize}
   \item Diseñar una FSM tipo Mealy que detecte la secuencia binaria \texttt{101} sobre una entrada serial.
   \item Diseñar una FSM tipo Moore que detecte la misma secuencia y comparar su temporización con la versión Mealy.
   \item Implementar en VHDL un sistema de semáforo de doble vía con cruce peatonal mediante una FSM de seis estados.
-  \item Construir un módulo estructural superior que conecte un divisor de frecuencia de \SI{50}{\mega\hertz} a \SI{1}{\hertz} con la FSM del semáforo.
+  \item Integrar la temporización dentro del contador interno de la FSM para que cada estado permanezca activo el número de segundos especificado, partiendo del reloj de \SI{50}{\mega\hertz} de la PYNQ~Z1.
+  \item Sintetizar el diseño en Vivado, asignar los pines mediante un archivo \texttt{xdc} y validar el funcionamiento del semáforo sobre la PYNQ~Z1 con un prototipo de LED conectado a los PMOD.
   \item Validar mediante simulación en Active-HDL los tres diseños y contrastar los resultados con el comportamiento teórico esperado.
 \end{itemize}
 
 \section{Materiales y herramientas}
 \begin{itemize}
-  \item \textbf{Software:} Active-HDL Student Edition para compilación y simulación funcional.
+  \item \textbf{Software de simulación:} Active-HDL Student Edition para compilación y simulación funcional.
+  \item \textbf{Software de síntesis:} Vivado Design Suite para síntesis, implementación y generación del \textit{bitstream} cargado en la PYNQ~Z1.
   \item \textbf{Lenguaje:} VHDL, con uso de las bibliotecas \texttt{ieee.std\_logic\_1164} y \texttt{ieee.numeric\_std}.
-  \item \textbf{Tecnología objetivo:} Zynq~7000 sobre tarjeta PYNQ~Z1, asumida como referencia de la frecuencia de reloj de \SI{50}{\mega\hertz}.
-  \item \textbf{Documentación:} guía oficial de la práctica 4, apuntes del curso sobre FSM Mealy/Moore y la documentación de Active-HDL.
+  \item \textbf{Plataforma objetivo:} tarjeta de desarrollo PYNQ~Z1 (Zynq~7000), reloj de placa de \SI{50}{\mega\hertz}.
+  \item \textbf{Hardware del prototipo:} protoboard, LED de cada color (rojo, ámbar, verde y azul para los bits de estado), resistencias limitadoras de corriente y cables \textit{jumper} para conectar los PMOD de la PYNQ~Z1.
+  \item \textbf{Documentación:} guía oficial de la práctica 4, apuntes del curso sobre FSM Mealy/Moore, hoja de datos de la PYNQ~Z1 (mapa de pines) y la documentación de Active-HDL y Vivado.
 \end{itemize}
 
 \section{Marco teórico}
@@ -167,8 +170,8 @@ El detector de la secuencia binaria \texttt{101} es un ejemplo clásico para com
 \subsection{Semáforo de doble vía con cruce peatonal}
 El sistema modela un cruce con una vía principal (calle A), una vía secundaria (calle B) y un cruce peatonal. Las luces vehiculares se codifican con tres bits, uno por cada color (\texttt{rojo=001}, \texttt{ámbar=010}, \texttt{verde=100}), mientras que la luz peatonal se codifica con dos bits (\texttt{rojo=01}, \texttt{verde=10}, \texttt{parpadeo=11}). El comportamiento se describe con seis estados que se recorren cíclicamente: dos fases vehiculares (A y B), cada una seguida de una fase de ámbar para liberar el cruce, y dos fases peatonales (verde y parpadeo de aviso). El sistema admite además una entrada de emergencia que fuerza el retorno al estado inicial y deja todas las luces vehiculares en rojo y la peatonal en rojo.
 
-\subsection{Divisor de frecuencia y diseño estructural}
-La FSM del semáforo trabaja en escala de segundos, mientras que el reloj físico de la PYNQ~Z1 es de \SI{50}{\mega\hertz}. Para llevar la FSM a su rango natural de operación se utiliza un divisor de frecuencia que produce un reloj de \SI{1}{\hertz} a partir del reloj de placa. Esto se logra contando $25\,000\,000$ ciclos del reloj de \SI{50}{\mega\hertz} y conmutando la salida en cada cuenta completa, de manera que la salida tenga un período de \SI{1}{\second} (medio período de \SI{0.5}{\second} en alto y medio en bajo). El divisor y la FSM se conectan finalmente en un módulo estructural de nivel superior, denominado \texttt{semaforo\_top}, que expone únicamente el reloj de placa, las señales de control y las luces hacia los pines de la tarjeta.
+\subsection{Temporización a partir del reloj de placa}
+La FSM del semáforo trabaja en escala de segundos, mientras que el reloj físico de la PYNQ~Z1 es de \SI{50}{\mega\hertz}. Una primera opción para conciliar ambas escalas consiste en utilizar un divisor de frecuencia que genere un reloj de \SI{1}{\hertz} a partir del reloj de placa (contando $25\,000\,000$ ciclos del reloj de \SI{50}{\mega\hertz} y conmutando la salida en cada cuenta completa) y conectar dicho divisor a la FSM mediante un módulo estructural de nivel superior. En esta práctica se siguió un enfoque equivalente pero más compacto: la FSM se alimenta directamente del reloj de \SI{50}{\mega\hertz} y la temporización se logra dentro del propio contador interno, configurando \texttt{timeout\_value} en múltiplos de $50\,000\,000$ ciclos (uno por cada segundo de permanencia en cada estado). Este enfoque elimina la necesidad de un módulo \texttt{top} estructural y reduce el diseño a una única entidad sintetizable.
 
 \section{Diseño y procedimiento}
 
@@ -201,23 +204,23 @@ S5 & Rojo   & Rojo  & Parpadeo\\
 
 \begin{table}[H]
 \centering
-\caption{Tiempo de permanencia (en ciclos del reloj de entrada) por estado.}
+\caption{Tiempo de permanencia por estado y valor de \texttt{timeout\_value} (ciclos del reloj de \SI{50}{\mega\hertz}).}
 \label{tab:semaforo_tiempos}
-\begin{tabular}{C{1.5cm}C{3cm}C{3cm}}
+\begin{tabular}{C{1.5cm}C{3cm}C{4.5cm}}
 \toprule
-Estado & Tiempo (s) & \texttt{timeout\_value}\\
+Estado & Tiempo (s) & \texttt{timeout\_value} (ciclos)\\
 \midrule
-S0 & 30 & 30\\
-S1 & 5  & 5\\
-S2 & 20 & 20\\
-S3 & 5  & 5\\
-S4 & 15 & 15\\
-S5 & 10 & 10\\
+S0 & 30 & $30 \times 50\,000\,000$\\
+S1 & 5  & $5  \times 50\,000\,000$\\
+S2 & 20 & $20 \times 50\,000\,000$\\
+S3 & 5  & $5  \times 50\,000\,000$\\
+S4 & 15 & $15 \times 50\,000\,000$\\
+S5 & 10 & $10 \times 50\,000\,000$\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Internamente la FSM utiliza un contador de 32 bits y una señal \texttt{timeout\_value} que se ajusta combinacionalmente al valor asociado al estado actual. En cada flanco de \texttt{clk}, si \texttt{emergency=0}, el contador incrementa hasta alcanzar \texttt{timeout\_value}, momento en el que la máquina pasa al siguiente estado y el contador se reinicia. Si \texttt{emergency=1}, el contador se limpia y la máquina regresa a S0; en ese mismo ciclo el proceso de salidas pone todas las luces vehiculares en rojo y la peatonal en rojo, llevando el sistema a una condición segura. Para llevar el diseño a la tarjeta PYNQ~Z1 la FSM se integraría con un divisor de frecuencia de \SI{50}{\mega\hertz} a \SI{1}{\hertz} y un módulo superior estructural que conecte ambos componentes, tal como se discute en la guía de la práctica.
+Internamente la FSM utiliza un contador de 32 bits y una señal \texttt{timeout\_value} que se ajusta combinacionalmente al valor asociado al estado actual. En cada flanco de \texttt{clk}, si \texttt{emergency=0}, el contador incrementa hasta alcanzar \texttt{timeout\_value}, momento en el que la máquina pasa al siguiente estado y el contador se reinicia. Si \texttt{emergency=1}, el contador se limpia y la máquina regresa a S0; en ese mismo ciclo el proceso de salidas pone todas las luces vehiculares en rojo y la peatonal en rojo, llevando el sistema a una condición segura. Como la FSM se alimenta directamente del reloj de \SI{50}{\mega\hertz} de la PYNQ~Z1 y \texttt{timeout\_value} se programa en ciclos de ese reloj, los tiempos de la Tabla~\ref{tab:semaforo_tiempos} se traducen directamente en segundos sobre la tarjeta sin necesidad de un divisor de frecuencia separado.
 
 \subsection{Flujo en Active-HDL}
 Para cada simulación se siguió el procedimiento habitual:
@@ -256,22 +259,64 @@ La Figura~\ref{fig:moore} muestra la simulación del detector Moore. La máquina
 La introducción del estado S3 hace que la salida quede registrada al estado y no presente transitorios derivados de la entrada, a costa de un retardo de un ciclo. Esta propiedad es precisamente la que se busca cuando la salida de la FSM se conecta a otro bloque registrado, ya que evita carreras críticas y facilita el cumplimiento de los tiempos de \textit{setup}.
 
 \subsection{FSM del semáforo}
-La Figura~\ref{fig:sem} muestra la simulación de la FSM del semáforo en aislamiento. Se observa el avance ordenado por los estados S0, S1, S2, S3, S4 y S5 (codificados respectivamente como \texttt{01}, \texttt{02}, \texttt{04}, \texttt{08}, \texttt{10} y \texttt{20} en hexadecimal por la codificación \textit{one-hot}) y el regreso cíclico a S0. La señal \texttt{counter} incrementa en cada flanco activo y dispara la transición cuando alcanza \texttt{timeout\_value}, que a su vez se ajusta al valor del estado en curso. Las salidas \texttt{luz1}, \texttt{luz2} y \texttt{luz3} cambian de acuerdo con la Tabla~\ref{tab:semaforo_estados}.
+A diferencia de los detectores Mealy y Moore, la verificación de la FSM del semáforo no se realizó por simulación sino directamente sobre el arreglo experimental montado en la PYNQ~Z1, ya que los tiempos de permanencia de cada estado (decenas de segundos cuando el contador se programa en múltiplos de $50\,000\,000$ ciclos) hacen poco práctico observarlos en un \textit{waveform} y son fáciles de validar a simple vista en el prototipo de LED. Conceptualmente el comportamiento esperado es el siguiente: la FSM avanza ordenadamente por los estados S0, S1, S2, S3, S4 y S5, codificados como \texttt{01}, \texttt{02}, \texttt{04}, \texttt{08}, \texttt{10} y \texttt{20} en hexadecimal por la codificación \textit{one-hot}, y regresa cíclicamente a S0. La señal \texttt{counter} incrementa en cada flanco activo y dispara la transición cuando alcanza \texttt{timeout\_value}, valor que se ajusta combinacionalmente al estado en curso, mientras que las salidas \texttt{luz1}, \texttt{luz2} y \texttt{luz3} cambian de acuerdo con la Tabla~\ref{tab:semaforo_estados}.
+
+Al activar la entrada \texttt{emergency}, la FSM regresa al estado S0 y la asignación de salidas deja \texttt{luz1=001}, \texttt{luz2=001} y \texttt{luz3=01}, condición segura en la que ambas vías quedan en rojo y el peatón en rojo. Esto valida el camino de control de emergencia y se observa de inmediato sobre el prototipo al pulsar el botón asignado a esta señal, como se discute en la siguiente sección.
+
+\section{Implementación en hardware sobre PYNQ~Z1}
+
+Una vez verificada funcionalmente la FSM del semáforo en Active-HDL, el diseño se sintetizó con Vivado y se programó en la tarjeta de desarrollo PYNQ~Z1. Como se discutió en el marco teórico, en la implementación final no se utilizó un módulo estructural de nivel superior con un divisor de frecuencia separado: el contador interno de la FSM se ajustó para contar $N \times 50\,000\,000$ ciclos del reloj de \SI{50}{\mega\hertz} de la placa, de manera que cada cuenta completa corresponde directamente a $N$ segundos de permanencia en el estado. De esta forma, el diseño físico mantiene la jerarquía mínima (una única entidad \texttt{fsm\_semaforo}) y se programan los tiempos del semáforo modificando únicamente las constantes del proceso combinacional que asigna \texttt{timeout\_value}.
+
+\subsection{Asignación de pines (constraints)}
+El archivo \texttt{semaforo.xdc} describe la asignación de los puertos de la entidad a pines físicos de la PYNQ~Z1. El reloj de placa de \SI{50}{\mega\hertz} se conecta al pin \texttt{H16}, los botones de la tarjeta se utilizan para reset y emergencia, y las luces vehiculares y peatonal se enrutan a los conectores PMOD para alimentar el prototipo de LED. Los seis bits del vector \texttt{state} también se exponen como salidas para observar la codificación \textit{one-hot} de la FSM en tiempo real durante la operación. La Tabla~\ref{tab:constraints} resume el mapeo principal.
+
+\begin{table}[H]
+\centering
+\caption{Mapeo principal del archivo \texttt{semaforo.xdc} sobre la PYNQ~Z1.}
+\label{tab:constraints}
+\begin{tabular}{C{3.5cm}C{3.5cm}C{5.5cm}}
+\toprule
+Señal & Pin (paquete) & Función física \\
+\midrule
+\texttt{clk}        & H16 & Reloj de placa de \SI{50}{\mega\hertz} \\
+\texttt{rst}        & D19 & Botón BTN0 (reset) \\
+\texttt{emergency}  & L19 & Botón BTN3 (emergencia) \\
+\texttt{luz1[2:0]}  & Y18, Y19, Y16 & Calle A: verde, ámbar, rojo \\
+\texttt{luz2[2:0]}  & U18, U19, W18 & Calle B: verde, ámbar, rojo \\
+\texttt{luz3[1:0]}  & Y17, W19      & Peatón: verde, rojo \\
+\texttt{state[5:0]} & W14, Y14, T11, T10, V16, W16 & Estado one-hot (depuración) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Todos los pines se declararon con el estándar \texttt{LVCMOS33}, compatible con la tensión de los conectores PMOD de la PYNQ~Z1 y con los LED utilizados en el prototipo. Adicionalmente, en el constraint del reloj se definió un período de $\SI{20}{\nano\second}$ con la directiva \texttt{create\_clock}, que corresponde a la frecuencia nominal de \SI{50}{\mega\hertz}.
+
+\subsection{Prototipo de LED y operación física}
+El prototipo se montó sobre una protoboard, con un LED por cada salida del semáforo y una resistencia limitadora de corriente en serie con cada uno. Las tres salidas de la calle A (\texttt{luz1}) se asociaron a un LED rojo, uno ámbar y uno verde; las tres salidas de la calle B (\texttt{luz2}) siguieron el mismo esquema, y la salida peatonal (\texttt{luz3}) se montó con un LED rojo y uno verde. Los seis bits del vector \texttt{state} se conectaron a una segunda hilera de LED para visualizar la codificación \textit{one-hot} del estado activo en cada momento.
+
+Las Figuras~\ref{fig:proto1} y \ref{fig:proto2} muestran al prototipo en operación durante dos instantes distintos del ciclo del semáforo. En la Figura~\ref{fig:proto1} se observa una combinación de luces vehiculares y peatonales correspondiente a una de las fases intermedias del ciclo, junto con varios bits del vector de estado encendidos en los LED de depuración. La Figura~\ref{fig:proto2} corresponde a otro instante del mismo ciclo, con una combinación distinta de luces y un único bit del vector \texttt{state} activo, lo cual confirma la codificación \textit{one-hot} usada por la FSM.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth]{sim_semaforo.png}
-\caption{Simulación de la FSM del semáforo: secuencia cíclica de los seis estados y luces correspondientes a las dos vías y al cruce peatonal.}
-\label{fig:sem}
+\includegraphics[width=0.6\textwidth]{Proto1.png}
+\caption{Prototipo del semáforo en operación sobre la PYNQ~Z1: luces vehiculares de calle A y calle B, luz peatonal y bits del vector \texttt{state} usados como depuración.}
+\label{fig:proto1}
 \end{figure}
 
-Si en la simulación se activara la entrada \texttt{emergency}, la FSM regresaría al estado S0 y la asignación de salidas dejaría \texttt{luz1=001}, \texttt{luz2=001} y \texttt{luz3=01}, condición segura en la que ambas vías quedan en rojo y el peatón en rojo. Esto valida el camino de control de emergencia y confirma que la FSM responde correctamente a una señal asíncrona de servicio.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{Proto2.png}
+\caption{Otro instante del ciclo del semáforo sobre la PYNQ~Z1: la combinación de luces y los LED de estado confirman una fase distinta de la FSM.}
+\label{fig:proto2}
+\end{figure}
+
+Durante la prueba se verificó cualitativamente que cada estado se mantenía durante el tiempo programado en \texttt{timeout\_value} (30, 5, 20, 5, 15 y 10 segundos para S0--S5, respectivamente), lo cual fue posible gracias al ajuste del contador interno al reloj real de \SI{50}{\mega\hertz} de la placa. Al pulsar el botón asignado a \texttt{emergency} (BTN3), la FSM regresaba inmediatamente al estado S0 con todas las luces vehiculares en rojo y la peatonal en rojo, replicando en hardware el camino de control de emergencia validado previamente en simulación. El botón BTN0 (reset) reiniciaba la máquina al estado inicial sin importar la fase en curso.
 
 \section{Análisis de resultados}
 
 La comparación entre las dos arquitecturas del detector \texttt{101} confirma las diferencias teóricas estudiadas en el curso. La FSM Mealy resuelve la detección con tres estados y reacciona en el mismo ciclo en el que llega el último bit; la FSM Moore necesita cuatro estados pero produce una salida estable y registrada con un retardo de un ciclo. En sistemas pequeños como éste, ambas opciones son válidas, pero la elección depende del entorno: cuando la salida alimenta lógica combinacional sensible a transitorios, conviene Moore; cuando se requiere mínima latencia, conviene Mealy. La forma en que se permitieron las detecciones traslapadas (regresar a S1 desde S2 o S3 al recibir un \texttt{1}) es la misma en ambos casos y se comprueba en la simulación al observar dos activaciones consecutivas de \texttt{flag} sobre la subcadena \texttt{10101}.
 
-En la FSM del semáforo, la relación entre \texttt{current\_state}, \texttt{next\_state} y \texttt{timeout\_value} muestra que la transición entre estados no ocurre de forma inmediata sino únicamente cuando el contador alcanza el tiempo asignado al estado actual. Este comportamiento confirma que la temporización fue integrada correctamente dentro de la máquina y que cada fase permanece activa durante el intervalo programado. En una implementación sobre la PYNQ~Z1 el contador se alimentaría desde un divisor de frecuencia de \SI{50}{\mega\hertz} a \SI{1}{\hertz}, integrado a la FSM mediante un módulo estructural superior; en simulación, los tiempos se interpretan directamente como ciclos del reloj de prueba.
+En la FSM del semáforo, la relación entre \texttt{current\_state}, \texttt{next\_state} y \texttt{timeout\_value} muestra que la transición entre estados no ocurre de forma inmediata sino únicamente cuando el contador alcanza el tiempo asignado al estado actual. Este comportamiento confirma que la temporización fue integrada correctamente dentro de la máquina y que cada fase permanece activa durante el intervalo programado. En la implementación física sobre la PYNQ~Z1, \texttt{timeout\_value} se programa en múltiplos de $50\,000\,000$ ciclos de manera que cada cuenta corresponde a un segundo real, lo cual se verificó cualitativamente durante la operación del prototipo de LED descrito en la sección anterior. En simulación, en cambio, los tiempos se interpretan directamente como ciclos del reloj de prueba para acortar el tiempo de cómputo.
 
 Las salidas observadas para las luces vehiculares y peatonales coinciden con la asignación planeada en cada estado. La codificación \textit{one-hot} del estado facilitó la lectura del \textit{waveform} y, en una eventual síntesis, permitiría implementar el registro de estado con seis biestables individuales, lo cual suele ser eficiente en FPGA.
 
@@ -281,7 +326,7 @@ Durante el desarrollo se mantuvieron las convenciones que ya se habían adoptado
 \section{Conclusiones}
 Se diseñaron y verificaron en VHDL tres FSM con propósitos distintos: dos detectores de la secuencia \texttt{101} (uno Mealy y otro Moore) y una unidad de control para un semáforo de doble vía con cruce peatonal. La simulación en Active-HDL confirmó las diferencias de temporización entre los modelos Mealy y Moore: el primero activa la salida en el mismo ciclo en el que se completa la secuencia, mientras que el segundo lo hace un ciclo después al depender únicamente del estado. Ambas implementaciones permiten detecciones traslapadas y son consistentes con el comportamiento teórico esperado.
 
-La FSM del semáforo recorrió correctamente los seis estados, respetó los tiempos asignados a cada fase mediante el contador interno y la señal \texttt{timeout\_value}, y dejó preparado el camino de control de emergencia. En una integración posterior sobre la PYNQ~Z1 esta FSM se uniría a un divisor de frecuencia de \SI{50}{\mega\hertz} a \SI{1}{\hertz} mediante un módulo estructural superior, permitiendo que los tiempos definidos en \texttt{timeout\_value} correspondan a segundos reales.
+La FSM del semáforo recorrió correctamente los seis estados, respetó los tiempos asignados a cada fase mediante el contador interno y la señal \texttt{timeout\_value}, y dejó preparado el camino de control de emergencia. Posteriormente, el diseño se sintetizó con Vivado y se programó en la PYNQ~Z1 utilizando un archivo de \textit{constraints} que asigna el reloj de placa, los botones BTN0 y BTN3 y las salidas de luces a los conectores PMOD. En el prototipo físico, los tiempos definidos en \texttt{timeout\_value} (programados en múltiplos de $50\,000\,000$ ciclos del reloj de \SI{50}{\mega\hertz}) se tradujeron directamente en segundos reales, y el botón de emergencia llevó al sistema a un estado seguro de manera inmediata, completando así el flujo desde la simulación hasta la operación sobre hardware.
 
 Esta práctica reforzó el manejo de procesos secuenciales y combinacionales en VHDL, así como la importancia de las FSM como base de las unidades de control en arquitecturas computacionales.
 
@@ -313,6 +358,6 @@ El código fuente VHDL de las tres FSM, junto con las capturas de las formas de 
 \begin{center}
 \url{https://github.com/Robbienicur/Arquitecturas-Computacionales/tree/main/Practica-4}
 \end{center}
-La carpeta \texttt{Practica-4} del repositorio contiene los archivos \texttt{mealy\_101.vhd}, \texttt{moore\_101.vhd} y \texttt{fsm\_semaforo.vhd}, las imágenes de la simulación y este mismo reporte en formato PDF.
+La carpeta \texttt{Practica-4} del repositorio contiene los archivos \texttt{mealy\_101.vhd}, \texttt{moore\_101.vhd} y \texttt{fsm\_semaforo.vhd}, los respectivos \textit{testbenches}, el archivo de \textit{constraints} \texttt{semaforo.xdc} para la PYNQ~Z1, las imágenes de simulación y del prototipo físico (\texttt{Proto1.png} y \texttt{Proto2.png}), y este mismo reporte en formato PDF.
 
 \end{document}
