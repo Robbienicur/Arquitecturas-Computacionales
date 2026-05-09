@@ -5,7 +5,7 @@ use IEEE.NUMERIC_STD.ALL;
 entity tb_riscv_single_abc is
 end entity tb_riscv_single_abc;
 
-architecture full of tb_riscv_single_abc is
+architecture simple of tb_riscv_single_abc is
 
     constant CLK_PERIOD : time := 100 ns;
     constant EXPECTED   : std_logic_vector(31 downto 0) := x"00000034";  -- (5*10)+2 = 52
@@ -37,38 +37,30 @@ begin
 
     stim: process
     begin
-        report "===============================================";
-        report " Testbench RISC-V single-cycle (subset ABC)";
-        report " ROM:";
-        report "   mul x4, x1, x2   -> x4 = 5  * 10 = 50";
-        report "   add x4, x4, x3   -> x4 = 50 +  2 = 52";
-        report "   jal x0, 0        -> loop";
-        report " Esperado en Y: 0x00000034 (52)";
-        report "===============================================";
+        report "=== Testbench RISC-V single-cycle (ABC) ===";
+        report "Programa: x4 = (x1 * x2) + x3 = (5 * 10) + 2 = 52";
+        report "Esperado en Y: 0x00000034";
 
         rst <= '1';
         wait for 2 * CLK_PERIOD;
         rst <= '0';
-        report "[t=" & time'image(now) & "] reset liberado";
+        report "Reset liberado";
 
-        for i in 1 to 6 loop
-            wait until rising_edge(clk);
-            wait for 1 ns;
-            report "[ciclo " & integer'image(i) & "] Y = 0x" & to_hstring(Y);
-        end loop;
+        -- dejar correr suficientes ciclos para que mul + add se ejecuten
+        wait for 8 * CLK_PERIOD;
 
-        wait for 2 * CLK_PERIOD;
         report "Fin de la simulacion";
         sim_done <= true;
         wait;
     end process;
 
+    -- monitor: dispara una nota la primera vez que Y alcanza el valor esperado
     monitor: process
     begin
         wait until Y = EXPECTED;
-        report "[CHECK PASS] Y alcanzo el valor esperado 0x00000034 en t = "
+        report "[CHECK PASS] Y = 0x00000034 alcanzado en t = "
                & time'image(now);
         wait;
     end process;
 
-end architecture full;
+end architecture simple;
